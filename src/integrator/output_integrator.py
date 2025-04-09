@@ -120,84 +120,73 @@ class OutputIntegrator:
                 "error": str(e)
             }
 
-
-    # Update src/integrator/output_integrator.py
-
-# Add this method to the OutputIntegrator class
-
-async def integrate_multimedia_results(self, execution_result: Dict[str, Any], original_request: str) -> Dict[str, Any]:
-    """
-    Integrate multimedia results from multiple agents.
-    
-    Args:
-        execution_result: Results from the execution engine
-        original_request: The original user request
+    async def integrate_multimedia_results(self, execution_result: Dict[str, Any], original_request: str) -> Dict[str, Any]:
+        """
+        Integrate multimedia results from multiple agents.
         
-    Returns:
-        Dict containing the integrated response with media data
-    """
-    # Extract task results
-    task_results = execution_result["task_results"]
-    
-    # Collect media data from different tasks
-    text_content = ""
-    image_data = []
-    audio_data = None
-    video_data = None
-    
-    for task_id, result in task_results.items():
-        if result.get("status") == "completed":
-            task_data = result.get("result", {})
-
-            print(f"Processing task result from task {task_id}")
+        Args:
+            execution_result: Results from the execution engine
+            original_request: The original user request
+            
+        Returns:
+            Dict containing the integrated response with media data
+        """
+        # Extract task results
+        task_results = execution_result["task_results"]
         
-            # Debug - print all keys in task_data
-            print(f"Task data keys: {list(task_data.keys())}")
-            
-            # Collect text content
-            if "generated_text" in task_data:
-                text_content += task_data["generated_text"] + "\n\n"
-            elif "text_description" in task_data:
-                text_content += task_data["text_description"] + "\n\n"
-            elif "transcript" in task_data:
-                text_content += task_data["transcript"] + "\n\n"
-            elif "conclusion" in task_data:
-                text_content += task_data["conclusion"] + "\n\n"
-            
-            # Collect image data
-            if "image_data" in task_data:
-                print(f"Found image data in task {task_id}")
-                image_data.append(task_data["image_data"])
-            
-            # Collect audio data
-            if "audio_data" in task_data:
-                audio_data = task_data["audio_data"]
-            
-            # Collect video data (takes precedence)
-            if "video_data" in task_data:
-                video_data = task_data["video_data"]
-                # If we have video, that's our final output
-                break
-    
-    # Prepare the response
-    response = {
-        "request_id": execution_result.get("request_id"),
-        "text_content": text_content,
-        "raw_results": task_results,
-        "status": "completed"
-    }
-    
-    # Add media data if available
-    if video_data:
-        response["video_data"] = video_data
-    elif audio_data and image_data:
-        # If we have both audio and images but no video, they might need to be combined
-        # This would be handled by a subsequent video creation task, but add them separately for now
-        response["audio_data"] = audio_data
-        response["image_data"] = image_data[0] if image_data else None
-    elif image_data:
-        response["image_data"] = image_data[0] if image_data else None
-    elif audio_data:
-        response["audio_data"] = audio_data
-    
-    return response
+        # Collect media data from different tasks
+        text_content = ""
+        image_data = []
+        audio_data = None
+        video_data = None
+        
+        for task_id, result in task_results.items():
+            if result.get("status") == "completed":
+                task_data = result.get("result", {})
+                
+                # Collect text content
+                if "generated_text" in task_data:
+                    text_content += task_data["generated_text"] + "\n\n"
+                elif "text_description" in task_data:
+                    text_content += task_data["text_description"] + "\n\n"
+                elif "transcript" in task_data:
+                    text_content += task_data["transcript"] + "\n\n"
+                elif "conclusion" in task_data:
+                    text_content += task_data["conclusion"] + "\n\n"
+                
+                # Collect image data
+                if "image_data" in task_data:
+                    image_data.append(task_data["image_data"])
+                
+                # Collect audio data
+                if "audio_data" in task_data:
+                    audio_data = task_data["audio_data"]
+                
+                # Collect video data (takes precedence)
+                if "video_data" in task_data:
+                    video_data = task_data["video_data"]
+                    # If we have video, that's our final output
+                    break
+        
+        # Prepare the response
+        response = {
+            "request_id": execution_result.get("request_id"),
+            "text_content": text_content,
+            "raw_results": task_results,
+            "status": "completed"
+        }
+        
+        # Add media data if available
+        if video_data:
+            response["video_data"] = video_data
+        elif audio_data and image_data:
+            # If we have both audio and images but no video, they might need to be combined
+            # This would be handled by a subsequent video creation task, but add them separately for now
+            response["audio_data"] = audio_data
+            response["image_data"] = image_data[0] if image_data else None
+        elif image_data:
+            response["image_data"] = image_data[0] if image_data else None
+        elif audio_data:
+            response["audio_data"] = audio_data
+        
+        return response

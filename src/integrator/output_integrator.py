@@ -148,6 +148,11 @@ async def integrate_multimedia_results(self, execution_result: Dict[str, Any], o
     for task_id, result in task_results.items():
         if result.get("status") == "completed":
             task_data = result.get("result", {})
+
+            print(f"Processing task result from task {task_id}")
+        
+            # Debug - print all keys in task_data
+            print(f"Task data keys: {list(task_data.keys())}")
             
             # Collect text content
             if "generated_text" in task_data:
@@ -161,6 +166,7 @@ async def integrate_multimedia_results(self, execution_result: Dict[str, Any], o
             
             # Collect image data
             if "image_data" in task_data:
+                print(f"Found image data in task {task_id}")
                 image_data.append(task_data["image_data"])
             
             # Collect audio data

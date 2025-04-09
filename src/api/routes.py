@@ -56,6 +56,28 @@ async def create_request(
     )
 
 
+# @router.get("/requests/{request_id}", response_model=RequestStatus)
+# async def get_request_status(request_id: str):
+#     """
+#     Get the status of a request.
+#     """
+#     from ..api.main import request_store
+    
+#     if request_id not in request_store:
+#         raise HTTPException(status_code=404, detail="Request not found")
+    
+#     request_data = request_store[request_id]
+    
+#     return RequestStatus(
+#         request_id=request_id,
+#         status=request_data.get("status", "unknown"),
+#         message=f"Request {request_data.get('status', 'unknown')}",
+#         response=request_data.get("response"),
+#         error=request_data.get("error"),
+#         processing_time=request_data.get("processing_time"),
+#     )
+
+
 @router.get("/requests/{request_id}", response_model=RequestStatus)
 async def get_request_status(request_id: str):
     """
@@ -67,6 +89,24 @@ async def get_request_status(request_id: str):
         raise HTTPException(status_code=404, detail="Request not found")
     
     request_data = request_store[request_id]
+    
+    # For failed requests, include more detailed error info
+    if request_data.get("status") == "failed":
+        error_detail = request_data.get("error", "Unknown error")
+        
+        # Check if there are more detailed errors in the execution results
+        if "stages" in request_data and "execution" in request_data["stages"]:
+            execution = request_data["stages"]["execution"]
+            if "result" in execution and "task_results" in execution["result"]:
+                task_errors = []
+                for task_id, task_result in execution["result"]["task_results"].items():
+                    if task_result.get("status") == "failed":
+                        task_errors.append({
+                            "task_id": task_id,
+                            "error": task_result.get("error", "Unknown task error")
+                        })
+                if task_errors:
+                    error_detail = f"{error_detail}. Task errors: {task_errors}"
     
     return RequestStatus(
         request_id=request_id,

@@ -37,18 +37,81 @@ orchestrator = Orchestrator(agent_registry)
 request_store = {}
 
 
-# Initialize agents on startup
+# # # Initialize agents on startup
+# # @app.on_event("startup")
+# # async def startup_event():
+#     # Register default agents
+#     text_agent = TextGenerationAgent()
+#     reasoning_agent = ReasoningAgent()
+#     orchestrator.register_agent(text_agent)
+#     orchestrator.register_agent(reasoning_agent)
+    
+#     # Start health checks
+#     agent_registry.start_health_checks()
+
+# Update the startup_event function in src/api/main.py
+
+# @app.on_event("startup")
+# async def startup_event():
+#     # Register default agents
+#     text_agent = TextGenerationAgent()
+#     reasoning_agent = ReasoningAgent()
+    
+#     # Register multimedia agents
+#     from src.agents.image_to_text_agent import ImageToTextAgent
+#     from src.agents.text_to_image_agent import TextToImageAgent
+#     from src.agents.text_to_audio_agent import TextToAudioAgent
+#     from src.agents.audio_to_text_agent import AudioToTextAgent
+#     from src.agents.video_creation_agent import VideoCreationAgent
+    
+#     image_to_text_agent = ImageToTextAgent()
+#     text_to_image_agent = TextToImageAgent()
+#     text_to_audio_agent = TextToAudioAgent()
+#     audio_to_text_agent = AudioToTextAgent()
+#     video_creation_agent = VideoCreationAgent()
+    
+#     # Register all agents with the orchestrator
+#     orchestrator.register_agent(text_agent)
+#     orchestrator.register_agent(reasoning_agent)
+#     orchestrator.register_agent(image_to_text_agent)
+#     orchestrator.register_agent(text_to_image_agent)
+#     orchestrator.register_agent(text_to_audio_agent)
+#     orchestrator.register_agent(audio_to_text_agent)
+#     orchestrator.register_agent(video_creation_agent)
+    
+#     # Start health checks
+#     agent_registry.start_health_checks()
+
 @app.on_event("startup")
 async def startup_event():
     # Register default agents
     text_agent = TextGenerationAgent()
     reasoning_agent = ReasoningAgent()
-    orchestrator.register_agent(text_agent)
-    orchestrator.register_agent(reasoning_agent)
+    
+    # Register multimedia agents - if you've added these
+    from src.agents.image_to_text_agent import ImageToTextAgent
+    from src.agents.text_to_image_agent import TextToImageAgent
+    from src.agents.text_to_audio_agent import TextToAudioAgent
+    from src.agents.audio_to_text_agent import AudioToTextAgent
+    from src.agents.video_creation_agent import VideoCreationAgent
+    
+    image_to_text_agent = ImageToTextAgent()
+    text_to_image_agent = TextToImageAgent()
+    text_to_audio_agent = TextToAudioAgent() 
+    audio_to_text_agent = AudioToTextAgent()
+    video_creation_agent = VideoCreationAgent()
+    
+    # Register all agents with the agent registry
+    agent_registry.register_agent(text_agent)
+    agent_registry.register_agent(reasoning_agent)
+    agent_registry.register_agent(image_to_text_agent)
+    agent_registry.register_agent(text_to_image_agent)
+    agent_registry.register_agent(text_to_audio_agent)
+    agent_registry.register_agent(audio_to_text_agent)
+    agent_registry.register_agent(video_creation_agent)
     
     # Start health checks
     agent_registry.start_health_checks()
-
 
 # Include API router
 app.include_router(api_router)

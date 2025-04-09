@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
 
 
@@ -35,3 +35,25 @@ class AgentInfo(BaseModel):
     description: str = Field(..., description="Description of the agent")
     capabilities: List[str] = Field(default=[], description="List of agent capabilities")
     metrics: AgentMetrics = Field(default_factory=AgentMetrics, description="Performance metrics")
+
+
+# Update src/api/models.py
+
+class MediaResponse(BaseModel):
+    """Model for media response data."""
+    type: str = Field(..., description="Type of media (image, audio, video)")
+    url: Optional[str] = Field(default=None, description="URL to access the media")
+    text_content: Optional[str] = Field(default=None, description="Text content related to the media")
+
+
+class RequestStatus(BaseModel):
+    """Model for request status."""
+    request_id: str = Field(..., description="Unique ID for the request")
+    status: str = Field(..., description="Status of the request")
+    message: Optional[str] = Field(default=None, description="Status message")
+    response: Optional[Union[str, Dict[str, Any]]] = Field(default=None, description="Response content or media data")
+    media_response: Optional[MediaResponse] = Field(default=None, description="Media response if available")
+    error: Optional[str] = Field(default=None, description="Error message if any")
+    created_at: Optional[float] = Field(default=None, description="Request creation timestamp")
+    completed_at: Optional[float] = Field(default=None, description="Request completion timestamp")
+    processing_time: Optional[float] = Field(default=None, description="Total processing time in seconds")

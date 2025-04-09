@@ -26,6 +26,29 @@ class TaskAnalyzer:
         )
         
         # Template for task decomposition
+        # self.decomposition_template = PromptTemplate(
+        #     input_variables=["request"],
+        #     template="""
+        #     You are an AI task planner. Break down the following request into subtasks:
+            
+        #     REQUEST: {request}
+            
+        #     For each subtask, specify:
+        #     1. A brief description
+        #     2. The required capability from this list: text_generation, summarization, reasoning, code_generation, data_analysis
+        #     3. Any dependencies on other subtasks (by subtask number)
+            
+        #     Format your response as a JSON array of objects with the following fields:
+        #     - description: string
+        #     - capability: string
+        #     - dependencies: array of integers
+            
+        #     Do not include any explanations, just the JSON array.
+        #     """
+        # )
+
+        # Update the decomposition template in src/analyzer/task_analyzer.py
+
         self.decomposition_template = PromptTemplate(
             input_variables=["request"],
             template="""
@@ -35,13 +58,30 @@ class TaskAnalyzer:
             
             For each subtask, specify:
             1. A brief description
-            2. The required capability from this list: text_generation, summarization, reasoning, code_generation, data_analysis
+            2. The required capability from this list: 
+            - text_generation: Generate written content
+            - summarization: Summarize text
+            - reasoning: Logical thinking and problem-solving
+            - image_to_text: Convert images to textual descriptions
+            - text_to_image: Generate images from text descriptions
+            - text_to_audio: Convert text to speech
+            - audio_to_text: Transcribe speech to text
+            - video_creation: Create videos from images and audio
+            - code_generation: Generate code
+            - data_analysis: Analyze data
             3. Any dependencies on other subtasks (by subtask number)
             
             Format your response as a JSON array of objects with the following fields:
             - description: string
             - capability: string
             - dependencies: array of integers
+            
+            When handling multimedia tasks, make sure to break it down into appropriate steps.
+            For example, creating a motivational video might include:
+            1. Generate motivational text (text_generation)
+            2. Convert text to speech (text_to_audio)
+            3. Generate images for each key point (text_to_image)
+            4. Create a video from the images and audio (video_creation)
             
             Do not include any explanations, just the JSON array.
             """

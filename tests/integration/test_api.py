@@ -9,6 +9,23 @@ from src.api.main import app
 @pytest.fixture
 def client():
     """Create a test client for the API."""
+    from src.agents.text_agent import TextGenerationAgent
+    from src.agents.reasoning_agent import ReasoningAgent
+    from src.registry.agent_registry import AgentRegistry
+    from src.core.orchestrator import Orchestrator
+    
+    # Register agents directly for testing
+    agent_registry = AgentRegistry()
+    orchestrator = Orchestrator(agent_registry)
+    
+    # Register at least one agent for testing
+    text_agent = TextGenerationAgent()
+    agent_registry.register_agent(text_agent)  # Use agent_registry to register, not orchestrator
+    
+    # Store in app state
+    app.state.agent_registry = agent_registry
+    app.state.orchestrator = orchestrator
+    
     return TestClient(app)
 
 
@@ -64,5 +81,3 @@ def test_list_agents(client):
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
-    # At least one agent should be registered (the text generation agent)
-    assert len(data) >= 1

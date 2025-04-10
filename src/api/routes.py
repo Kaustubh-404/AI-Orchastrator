@@ -240,12 +240,21 @@ async def create_request_with_media(
         message="Request with media accepted for processing",
     )
 
+# This is a modified version of the get_media_output function from src/api/routes.py
+# to be integrated into your existing codebase
+
 @router.get("/media/{request_id}")
 async def get_media_output(request_id: str):
     """
     Get media output (image, audio, video) from a request.
     """
     from ..api.main import request_store
+    from ..utils.media_storage import save_base64_media, ensure_data_directory
+    import tempfile
+    import os
+    import logging
+    
+    logger = logging.getLogger("api.media")
     
     if request_id not in request_store:
         raise HTTPException(status_code=404, detail="Request not found")
@@ -255,46 +264,104 @@ async def get_media_output(request_id: str):
         raise HTTPException(status_code=400, detail="Request not completed yet")
     
     response = request_data.get("response", {})
+    data_dir = ensure_data_directory()
     
     # Handle different media types
     if "video_data" in response:
         # Create a temporary file with the video data
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-        video_data = response["video_data"].split(",")[1]
-        temp_file.write(base64.b64decode(video_data))
-        temp_file.close()
-        
-        return FileResponse(
-            temp_file.name,
-            media_type="video/mp4",
-            filename=f"output_{request_id}.mp4"
-        )
+        try:
+            # Extract the actual base64 data if it has a prefix
+            video_data_str = response["video_data"]
+            if ',' in video_data_str:
+                video_data = video_data_str.split(",")[1]
+            else:
+                video_data = video_data_str
+                
+            temp_file.write(base64.b64decode(video_data))
+            temp_file.close()
+            
+            # Also save to data directory
+            output_path = os.path.join(str(data_dir), f"output_{request_id}.mp4")
+            try:
+                with open(output_path, 'wb') as f:
+                    f.write(base64.b64decode(video_data))
+                logger.info(f"Saved video to data directory: {output_path}")
+            except Exception as e:
+                logger.error(f"Failed to save video to data directory: {str(e)}")
+            
+            return FileResponse(
+                temp_file.name,
+                media_type="video/mp4",
+                filename=f"output_{request_id}.mp4"
+            )
+        except Exception as e:
+            logger.error(f"Error processing video: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error processing video: {str(e)}")
     
     elif "image_data" in response:
         # Create a temporary file with the image data
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-        image_data = response["image_data"].split(",")[1]
-        temp_file.write(base64.b64decode(image_data))
-        temp_file.close()
-        
-        return FileResponse(
-            temp_file.name,
-            media_type="image/png",
-            filename=f"output_{request_id}.png"
-        )
+        try:
+            # Extract the actual base64 data if it has a prefix
+            image_data_str = response["image_data"]
+            if ',' in image_data_str:
+                image_data = image_data_str.split(",")[1]
+            else:
+                image_data = image_data_str
+                
+            temp_file.write(base64.b64decode(image_data))
+            temp_file.close()
+            
+            # Also save to data directory
+            output_path = os.path.join(str(data_dir), f"output_{request_id}.png")
+            try:
+                with open(output_path, 'wb') as f:
+                    f.write(base64.b64decode(image_data))
+                logger.info(f"Saved image to data directory: {output_path}")
+            except Exception as e:
+                logger.error(f"Failed to save image to data directory: {str(e)}")
+            
+            return FileResponse(
+                temp_file.name,
+                media_type="image/png",
+                filename=f"output_{request_id}.png"
+            )
+        except Exception as e:
+            logger.error(f"Error processing image: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
     
     elif "audio_data" in response:
         # Create a temporary file with the audio data
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        audio_data = response["audio_data"].split(",")[1]
-        temp_file.write(base64.b64decode(audio_data))
-        temp_file.close()
-        
-        return FileResponse(
-            temp_file.name,
-            media_type="audio/wav",
-            filename=f"output_{request_id}.wav"
-        )
+        try:
+            # Extract the actual base64 data if it has a prefix
+            audio_data_str = response["audio_data"]
+            if ',' in audio_data_str:
+                audio_data = audio_data_str.split(",")[1]
+            else:
+                audio_data = audio_data_str
+                
+            temp_file.write(base64.b64decode(audio_data))
+            temp_file.close()
+            
+            # Also save to data directory
+            output_path = os.path.join(str(data_dir), f"output_{request_id}.wav")
+            try:
+                with open(output_path, 'wb') as f:
+                    f.write(base64.b64decode(audio_data))
+                logger.info(f"Saved audio to data directory: {output_path}")
+            except Exception as e:
+                logger.error(f"Failed to save audio to data directory: {str(e)}")
+            
+            return FileResponse(
+                temp_file.name,
+                media_type="audio/wav",
+                filename=f"output_{request_id}.wav"
+            )
+        except Exception as e:
+            logger.error(f"Error processing audio: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
     
     else:
         # No media found

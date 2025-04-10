@@ -127,17 +127,40 @@ class ExecutionEngine:
                     if "result" in dep_result:
                         dependencies_data[dep_task_id] = dep_result["result"]
                 
-                # Process the task with the selected agent
-                result = await agent.process(
-                    {
-                        "task_id": task_id,
-                        "description": subtask["description"],
-                        "dependencies_data": dependencies_data,
-                        # Add other relevant data from subtask
-                        **{k: v for k, v in subtask.items() 
-                           if k not in ["task_id", "description", "dependencies"]}
-                    }
-                )
+                # # Process the task with the selected agent
+                # result = await agent.process(
+                #     {
+                #         "task_id": task_id,
+                #         "description": subtask["description"],
+                #         "dependencies_data": dependencies_data,
+                #         # Add other relevant data from subtask
+                #         **{k: v for k, v in subtask.items() 
+                #            if k not in ["task_id", "description", "dependencies"]}
+                #     }
+                # )
+                task_data = {
+                    "task_id": task_id,
+                    "description": subtask["description"],
+                    "dependencies_data": dependencies_data,
+                    # Add other relevant data from subtask
+                    **{k: v for k, v in subtask.items() 
+                    if k not in ["task_id", "description", "dependencies"]}
+                }
+
+                # Make sure prompt is set correctly for text-to-image
+                if subtask["required_capability"] == "text_to_image":
+                    # If the task is text-to-image, use original request content as prompt
+                    # Try to get original content from context or fallback to description
+                    original_request = subtask.get("original_request", "")
+                    if original_request:
+                        task_data["prompt"] = original_request
+                    else:
+                        # Fallback to using description as prompt
+                        task_data["prompt"] = subtask["description"]
+                    print(f"Setting image generation prompt to: {task_data['prompt']}")
+
+                result = await agent.process(task_data)
+
                 
                 execution_time = time.time() - start_time
                 

@@ -117,13 +117,38 @@ async def startup_event():
 app.include_router(api_router)
 
 
+# This is a modified version of the process_request_background function
+# to be integrated into your src/api/main.py file
+
 async def process_request_background(request_id: str, content: str, context: Optional[Dict[str, Any]] = None):
     """
-    Process a request in the background.
+    Process a request in the background and save any media results to the data directory.
     """
+    import logging
+    from ..utils.media_storage import save_media_response, ensure_data_directory
+    
+    logger = logging.getLogger("api.request_processor")
+    
+    # Make sure data directory exists
+    data_dir = ensure_data_directory()
+    logger.info(f"Using data directory: {data_dir}")
+    
     try:
         # Process the request with the orchestrator
+        logger.info(f"Processing request {request_id}: {content[:100]}...")
         result = await orchestrator.process_request(content, context)
+        
+        # Save any media in the response to the data directory
+        media_result = save_media_response(result, f"request_{request_id}")
+        
+        # Log the results of media saving
+        if media_result["saved_files"]:
+            for file_info in media_result["saved_files"]:
+                logger.info(f"Saved {file_info['type']} to {file_info['path']}")
+        
+        if media_result["errors"]:
+            for error_info in media_result["errors"]:
+                logger.error(f"Failed to save {error_info['type']}: {error_info['error']}")
         
         # Update the request store
         request_store[request_id] = {
@@ -133,9 +158,11 @@ async def process_request_background(request_id: str, content: str, context: Opt
             "processing_time": result.get("processing_time", 0),
             "created_at": request_store[request_id].get("created_at"),
             "completed_at": asyncio.get_event_loop().time(),
+            "media_files": [f["path"] for f in media_result["saved_files"]] if media_result["saved_files"] else []
         }
         
     except Exception as e:
+        logger.error(f"Error processing request {request_id}: {str(e)}", exc_info=True)
         # Handle errors
         request_store[request_id] = {
             "request_id": request_id,
@@ -144,7 +171,6 @@ async def process_request_background(request_id: str, content: str, context: Opt
             "created_at": request_store[request_id].get("created_at"),
             "completed_at": asyncio.get_event_loop().time(),
         }
-
 
 
 

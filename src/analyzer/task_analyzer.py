@@ -86,18 +86,20 @@ class TaskAnalyzer:
             Do not include any explanations, just the JSON array.
             """
         )
-    
-    async def analyze_request(self, request_content: str) -> Dict[str, Any]:
+
+    async def analyze_request(self, request_content: str, request_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Analyze a user request and break it down into subtasks.
         
         Args:
             request_content: The content of the user request
+            request_id: Optional request ID to use (generated if not provided)
             
         Returns:
             Dict containing request_id, subtasks and dependency graph
         """
-        request_id = str(uuid.uuid4())
+        if request_id is None:
+            request_id = str(uuid.uuid4())
         
         # For an MVP, we'll use a simple LLM-based decomposition
         # In a production system, this would be more sophisticated
@@ -156,6 +158,76 @@ class TaskAnalyzer:
                 "dependency_graph": self._serialize_graph(g),
                 "fallback_reason": str(e)
             }
+    
+    # async def analyze_request(self, request_content: str) -> Dict[str, Any]:
+    #     """
+    #     Analyze a user request and break it down into subtasks.
+        
+    #     Args:
+    #         request_content: The content of the user request
+            
+    #     Returns:
+    #         Dict containing request_id, subtasks and dependency graph
+    #     """
+    #     request_id = str(uuid.uuid4())
+        
+    #     # For an MVP, we'll use a simple LLM-based decomposition
+    #     # In a production system, this would be more sophisticated
+    #     decomposition_prompt = self.decomposition_template.format(request=request_content)
+    #     messages = [{"role": "user", "content": decomposition_prompt}]
+    #     response = self.llm.invoke(messages)
+    #     llm_response = response.content
+        
+    #     try:
+    #         # Parse the JSON response from the LLM
+    #         subtasks_data = json.loads(llm_response)
+            
+    #         # Add IDs and request ID to subtasks
+    #         subtasks = []
+    #         for i, subtask_data in enumerate(subtasks_data):
+    #             subtask_id = str(uuid.uuid4())
+    #             subtasks.append({
+    #                 "task_id": subtask_id,
+    #                 "request_id": request_id,
+    #                 "description": subtask_data["description"],
+    #                 "required_capability": subtask_data["capability"],
+    #                 "dependencies": subtask_data.get("dependencies", []),
+    #                 "status": "pending",
+    #                 "index": i,  # Keep track of original position
+    #             })
+            
+    #         # Create dependency graph
+    #         dependency_graph = self._create_dependency_graph(subtasks)
+            
+    #         return {
+    #             "request_id": request_id,
+    #             "subtasks": subtasks,
+    #             "dependency_graph": self._serialize_graph(dependency_graph)
+    #         }
+        
+    #     except (json.JSONDecodeError, KeyError) as e:
+    #         # Fallback to simple task if decomposition fails
+    #         subtask_id = str(uuid.uuid4())
+    #         fallback_subtask = {
+    #             "task_id": subtask_id,
+    #             "request_id": request_id,
+    #             "description": f"Process the request: {request_content}",
+    #             "required_capability": "text_generation",
+    #             "dependencies": [],
+    #             "status": "pending",
+    #             "index": 0,
+    #         }
+            
+    #         # Create a simple graph with just one node
+    #         g = nx.DiGraph()
+    #         g.add_node(subtask_id)
+            
+    #         return {
+    #             "request_id": request_id,
+    #             "subtasks": [fallback_subtask],
+    #             "dependency_graph": self._serialize_graph(g),
+    #             "fallback_reason": str(e)
+    #         }
     
     def _create_dependency_graph(self, subtasks: List[Dict[str, Any]]) -> nx.DiGraph:
         """

@@ -74,8 +74,7 @@ class ExecutionEngine:
             "execution_time": execution_time,
         }
     
-    async def _execute_subtask(self, task_id: str, subtask: Dict[str, Any], 
-                              task_results: Dict[str, Any], graph: nx.DiGraph) -> Dict[str, Any]:
+    async def _execute_subtask(self, task_id: str, subtask: Dict[str, Any],task_results: Dict[str, Any], graph: nx.DiGraph) -> Dict[str, Any]:
         """
         Execute a single subtask.
         
@@ -127,17 +126,7 @@ class ExecutionEngine:
                     if "result" in dep_result:
                         dependencies_data[dep_task_id] = dep_result["result"]
                 
-                # # Process the task with the selected agent
-                # result = await agent.process(
-                #     {
-                #         "task_id": task_id,
-                #         "description": subtask["description"],
-                #         "dependencies_data": dependencies_data,
-                #         # Add other relevant data from subtask
-                #         **{k: v for k, v in subtask.items() 
-                #            if k not in ["task_id", "description", "dependencies"]}
-                #     }
-                # )
+                # Prepare task data
                 task_data = {
                     "task_id": task_id,
                     "description": subtask["description"],
@@ -147,7 +136,7 @@ class ExecutionEngine:
                     if k not in ["task_id", "description", "dependencies"]}
                 }
 
-                # Make sure prompt is set correctly for text-to-image
+                # Special handling for different capabilities
                 if subtask["required_capability"] == "text_to_image":
                     # If the task is text-to-image, use original request content as prompt
                     # Try to get original content from context or fallback to description
@@ -158,9 +147,38 @@ class ExecutionEngine:
                         # Fallback to using description as prompt
                         task_data["prompt"] = subtask["description"]
                     print(f"Setting image generation prompt to: {task_data['prompt']}")
+                
+                elif subtask["required_capability"] == "text_to_audio":
+                    # For text-to-audio, make sure the text parameter is set correctly
+                    # Extract text from description 
+                    description = subtask["description"]
+                    
+                    # Try to extract text from phrases like "Convert X to speech" or "Generate audio for X"
+                    import re
+                    
+                    text_match = re.search(r"Convert\s+['\"](.*?)['\"].*(?:to speech|to audio)", description, re.IGNORECASE)
+                    if not text_match:
+                        text_match = re.search(r"Generate\s+(?:speech|audio)\s+for\s+['\"](.*?)['\"]", description, re.IGNORECASE)
+                    if not text_match:
+                        text_match = re.search(r"Generate\s+(?:speech|audio)\s+(?:saying|that says)\s+['\"](.*?)['\"]", description, re.IGNORECASE)
+                    
+                    if text_match:
+                        task_data["text"] = text_match.group(1)
+                        print(f"Extracted text for speech synthesis: {task_data['text']}")
+                    else:
+                        # Fallback: Use the entire description as the text
+                        task_data["text"] = description
+                        print(f"Using description as text for speech synthesis: {task_data['text']}")
 
+                # Process the task with the selected agent
+                print(f"Processing task {task_id} with agent {agent.name} for capability {capability}")
                 result = await agent.process(task_data)
-
+                
+                # Special handling for text-to-audio results
+                if capability == "text_to_audio" and result.get("status") == "completed":
+                    print(f"Text to audio result keys: {list(result.keys())}")
+                    if "audio_data" not in result:
+                        print(f"WARNING: text_to_audio task completed but no audio_data in result")
                 
                 execution_time = time.time() - start_time
                 
@@ -174,6 +192,10 @@ class ExecutionEngine:
                 }
                 
             except Exception as e:
+                import traceback
+                print(f"Error executing task {task_id}: {str(e)}")
+                print(traceback.format_exc())
+                
                 execution_time = time.time() - start_time
                 
                 # Return error information
@@ -183,7 +205,7 @@ class ExecutionEngine:
                     "error": str(e),
                     "execution_time": execution_time,
                 }
-    
+            
     def _deserialize_graph(self, graph_data: Dict[str, Any]) -> nx.DiGraph:
         """
         Deserialize a graph from dictionary representation.
@@ -205,6 +227,140 @@ class ExecutionEngine:
             g.add_edge(edge["source"], edge["target"])
         
         return g
+
+
+
+    # async def _execute_subtask(self, task_id: str, subtask: Dict[str, Any], 
+    #                           task_results: Dict[str, Any], graph: nx.DiGraph) -> Dict[str, Any]:
+    #     """
+    #     Execute a single subtask.
+        
+    #     Args:
+    #         task_id: ID of the task to execute
+    #         subtask: The subtask data
+    #         task_results: Dictionary to store results
+    #         graph: The dependency graph
+            
+    #     Returns:
+    #         Dict containing the execution result
+    #     """
+    #     # Wait for dependencies to complete
+    #     predecessors = list(graph.predecessors(task_id))
+    #     for dep_task_id in predecessors:
+    #         while dep_task_id not in task_results:
+    #             await asyncio.sleep(0.1)
+            
+    #         # If a dependency failed, mark this task as failed too
+    #         if task_results[dep_task_id].get("status") != "completed":
+    #             return {
+    #                 "task_id": task_id,
+    #                 "status": "failed",
+    #                 "error": f"Dependency {dep_task_id} failed",
+    #                 "execution_time": 0,
+    #             }
+        
+    #     # Wait for a slot in the semaphore for parallel execution control
+    #     async with self.execution_semaphore:
+    #         start_time = time.time()
+            
+    #         try:
+    #             # Select agent based on required capability
+    #             capability = subtask["required_capability"]
+    #             agent = self.agent_registry.get_best_agent_for_capability(capability)
+                
+    #             if not agent:
+    #                 return {
+    #                     "task_id": task_id,
+    #                     "status": "failed",
+    #                     "error": f"No agent available for capability: {capability}",
+    #                     "execution_time": time.time() - start_time,
+    #                 }
+                
+    #             # Prepare dependencies data if needed
+    #             dependencies_data = {}
+    #             for dep_task_id in predecessors:
+    #                 dep_result = task_results[dep_task_id]
+    #                 if "result" in dep_result:
+    #                     dependencies_data[dep_task_id] = dep_result["result"]
+                
+    #             # # Process the task with the selected agent
+    #             # result = await agent.process(
+    #             #     {
+    #             #         "task_id": task_id,
+    #             #         "description": subtask["description"],
+    #             #         "dependencies_data": dependencies_data,
+    #             #         # Add other relevant data from subtask
+    #             #         **{k: v for k, v in subtask.items() 
+    #             #            if k not in ["task_id", "description", "dependencies"]}
+    #             #     }
+    #             # )
+    #             task_data = {
+    #                 "task_id": task_id,
+    #                 "description": subtask["description"],
+    #                 "dependencies_data": dependencies_data,
+    #                 # Add other relevant data from subtask
+    #                 **{k: v for k, v in subtask.items() 
+    #                 if k not in ["task_id", "description", "dependencies"]}
+    #             }
+
+    #             # Make sure prompt is set correctly for text-to-image
+    #             if subtask["required_capability"] == "text_to_image":
+    #                 # If the task is text-to-image, use original request content as prompt
+    #                 # Try to get original content from context or fallback to description
+    #                 original_request = subtask.get("original_request", "")
+    #                 if original_request:
+    #                     task_data["prompt"] = original_request
+    #                 else:
+    #                     # Fallback to using description as prompt
+    #                     task_data["prompt"] = subtask["description"]
+    #                 print(f"Setting image generation prompt to: {task_data['prompt']}")
+
+    #             result = await agent.process(task_data)
+
+                
+    #             execution_time = time.time() - start_time
+                
+    #             # Return the result
+    #             return {
+    #                 "task_id": task_id,
+    #                 "agent_id": agent.agent_id,
+    #                 "status": result.get("status", "completed"),
+    #                 "result": result,
+    #                 "execution_time": execution_time,
+    #             }
+                
+    #         except Exception as e:
+    #             execution_time = time.time() - start_time
+                
+    #             # Return error information
+    #             return {
+    #                 "task_id": task_id,
+    #                 "status": "failed",
+    #                 "error": str(e),
+    #                 "execution_time": execution_time,
+    #             }
+    
+    # def _deserialize_graph(self, graph_data: Dict[str, Any]) -> nx.DiGraph:
+    #     """
+    #     Deserialize a graph from dictionary representation.
+        
+    #     Args:
+    #         graph_data: Dict representation of the graph
+            
+    #     Returns:
+    #         NetworkX DiGraph
+    #     """
+    #     g = nx.DiGraph()
+        
+    #     # Add nodes
+    #     for node in graph_data["nodes"]:
+    #         g.add_node(node)
+        
+    #     # Add edges
+    #     for edge in graph_data["edges"]:
+    #         g.add_edge(edge["source"], edge["target"])
+        
+    #     return g
 
 
 
